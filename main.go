@@ -55,6 +55,10 @@ func main() {
 		controllers.GetOrderByID(c, db)
 	})
 
+	r.GET("/orders/:id/status", func(c *gin.Context) {
+		controllers.CheckOrderStatusByID(c, db)
+	})
+
 	// Start the server
 	if err := r.Run(":8081"); err != nil {
 		log.Fatal("Server failed:", err)

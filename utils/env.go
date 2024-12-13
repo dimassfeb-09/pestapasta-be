@@ -7,27 +7,71 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// ENV struct holds all environment variables, such as database and Midtrans keys
 type ENV struct {
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	SSLMode    string
+	DBHost       string
+	DBPort       string
+	DBUser       string
+	DBPassword   string
+	DBName       string
+	SSLMode      string
+	MidtransKey  string
+	SecretKeyJWT string
 }
 
+// GetENV loads environment variables based on the current environment (production or local)
 func GetENV() ENV {
+	// Load environment variables from .env file (if present)
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Error loading .env file: %v", err)
 	}
 
-	return ENV{
-		DBHost:     os.Getenv("DB_HOST"),
-		DBPort:     os.Getenv("DB_PORT"),
-		DBUser:     os.Getenv("DB_USER"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     os.Getenv("DB_NAME"),
-		SSLMode:    os.Getenv("SSL_MODE"),
+	// Determine the current environment (production or local)
+	env := getEnv("APP_ENV", "local") // Default to 'local' if not set
+
+	// Initialize environment-specific variables
+	var dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, midtransKey, secretKeyJWT string
+
+	// Check the environment and load the respective variables
+	if env == "production" {
+		dbHost = getEnv("DB_HOST_PRODUCTION", "prod-db-host")
+		dbPort = getEnv("DB_PORT_PRODUCTION", "5432")
+		dbUser = getEnv("DB_USER_PRODUCTION", "prod-user")
+		dbPassword = getEnv("DB_PASSWORD_PRODUCTION", "prod-password")
+		dbName = getEnv("DB_NAME_PRODUCTION", "prod-db")
+		sslMode = getEnv("SSL_MODE_PRODUCTION", "require")
+		midtransKey = getEnv("MIDTRANS_SERVER_KEY_PRODUCTION", "default-prod-key")
+	} else {
+		dbHost = getEnv("DB_HOST_LOCAL", "localhost")
+		dbPort = getEnv("DB_PORT_LOCAL", "5432")
+		dbUser = getEnv("DB_USER_LOCAL", "local-user")
+		dbPassword = getEnv("DB_PASSWORD_LOCAL", "local-password")
+		dbName = getEnv("DB_NAME_LOCAL", "local-db")
+		sslMode = getEnv("SSL_MODE_LOCAL", "disable")
+		midtransKey = getEnv("MIDTRANS_SERVER_KEY_SANDBOX", "default-sandbox-key")
 	}
+
+	// Get the JWT secret key which is common across environments
+	secretKeyJWT = getEnv("SECRET_KEY_JWT", "")
+
+	// Return the populated ENV struct
+	return ENV{
+		DBHost:       dbHost,
+		DBPort:       dbPort,
+		DBUser:       dbUser,
+		DBPassword:   dbPassword,
+		DBName:       dbName,
+		SSLMode:      sslMode,
+		MidtransKey:  midtransKey,
+		SecretKeyJWT: secretKeyJWT,
+	}
+}
+
+// getEnv retrieves the value of an environment variable or returns a default value if not set
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
 }

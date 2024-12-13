@@ -3,10 +3,14 @@ package controllers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/dimassfeb-09/pestapasta-be/helpers"
 	"github.com/dimassfeb-09/pestapasta-be/models"
+	"github.com/dimassfeb-09/pestapasta-be/services"
 	"github.com/dimassfeb-09/pestapasta-be/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -105,10 +109,10 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 	}
 
 	// Calculate total price
-	total := 0
+	total := 0.0
 	for _, product := range products {
 		quantity := productQuantities[product.ID]
-		total += product.Price * quantity
+		total += product.Price * float64(quantity)
 	}
 
 	// Create order
@@ -131,6 +135,56 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	var midtransResponse *models.CreateTransactionMidtransResponse
+	if paymentMethod.Code == "qris" {
+		var itemDetails []models.ItemDetails
+		for _, item := range checkoutRequest.Products {
+			product := productMap[item.ID]
+			itemDetails = append(itemDetails, models.ItemDetails{
+				ID:       fmt.Sprintf("PRODUCTID-%d", product.ID),
+				Price:    product.Price,
+				Quantity: item.Quantity,
+				Name:     product.Name,
+			})
+		}
+
+		midtransPayload := models.CreateTransactionMidtransPayload{
+			PaymentType: "qris",
+			ItemDetails: itemDetails,
+			TransactionDetails: struct {
+				OrderID     string  `json:"order_id"`
+				GrossAmount float64 `json:"gross_amount"`
+			}{
+				OrderID:     fmt.Sprintf("ORDER-%d", time.Now().Unix()), // Generate dynamic OrderID
+				GrossAmount: total,
+			},
+			CustomerDetails: struct {
+				FirstName string `json:"first_name"`
+				LastName  string `json:"last_name"`
+				Email     string `json:"email"`
+			}{
+				FirstName: checkoutRequest.Name,
+				LastName:  checkoutRequest.Name,
+				Email:     checkoutRequest.Email,
+			},
+			QRIS: struct {
+				Acquirer string `json:"acquirer"`
+			}{
+				Acquirer: "gopay", // Set acquirer to 'gopay', or whatever is needed
+			},
+		}
+
+		// Create transaction with Midtrans API
+		responseCreateTransactionMidtrans, errorResponse, err := services.CreateTransaction(midtransPayload)
+		if errorResponse != nil || err != nil {
+			statusCode, _ := strconv.Atoi(errorResponse.StatusCode)
+			c.JSON(statusCode, gin.H{"error": "Internal Server Error: Payment"})
+			return
+		}
+
+		midtransResponse = responseCreateTransactionMidtrans
+	}
+
 	// Create order in database
 	if err := db.Create(&order).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating order"})
@@ -142,10 +196,15 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		OrderID:              order.ID,
 		PaymentMethod:        paymentMethod.Name,
 		PaymentAccountNumber: paymentMethod.AccountNumber,
+		PaymentAccountName:   paymentMethod.AccountName,
 		PaymentStatus:        "pending",
-		PaymentDate:          time.Now().Format("2006-01-02 15:04:05"),
+		PaymentCreateDate:    time.Now().Format("2006-01-02 15:04:05"),
+		PaymentExpiredDate:   midtransResponse.ExpiryTime,
 		TransactionCode:      fmt.Sprintf("TXN%d", order.ID),
-		CreatedAt:            time.Now().Format("2006-01-02 15:04:05"),
+	}
+	if payment.PaymentMethod == "QRIS" {
+		payment.PaymentQRCodeURL = midtransResponse.Actions[0].URL
+		payment.PaymentTransactionID = midtransResponse.TransactionID
 	}
 
 	// Create order details
@@ -156,7 +215,7 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 			MenuID:        product.ID,
 			Quantity:      quantity,
 			Notes:         checkoutRequest.Products[i].Note,
-			SubtotalPrice: product.Price * quantity,
+			SubtotalPrice: product.Price * float64(quantity),
 		}
 		if err := db.Create(&orderDetail).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating order details"})
@@ -170,20 +229,48 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	// Build response
-	checkoutResponse := models.CheckoutResponse{
-		Name:                 checkoutRequest.Name,
-		Email:                checkoutRequest.Email,
-		ProductDetails:       products,
-		Total:                total,
+	paymentDetails := models.PaymentDetails{
 		PaymentAccountNumber: payment.PaymentAccountNumber,
+		PaymentAccountName:   payment.PaymentAccountName,
 		PaymentMethod:        payment.PaymentMethod,
 		PaymentStatus:        payment.PaymentStatus,
-		TransactionCode:      payment.TransactionCode,
 	}
 
+	// Set the PaymentExpiredTime based on the payment method
+	if payment.PaymentMethod == "BCA" {
+		paymentDetails.PaymentExpiredTime = (time.Minute * 10).Milliseconds()
+		paymentDetails.PaymentMethod = "bank"
+	} else if payment.PaymentMethod == "QRIS" {
+		paymentDetails.PaymentExpiredTime = (time.Minute * 15).Milliseconds()
+		paymentDetails.PaymentMethod = "qris"
+	}
+
+	if midtransResponse != nil {
+		paymentDetails.QRImageURL = midtransResponse.Actions[0].URL
+	}
+
+	// Build response
+	checkoutResponse := models.CheckoutResponse{
+		Name:            checkoutRequest.Name,
+		Email:           checkoutRequest.Email,
+		ProductDetails:  products,
+		Total:           total,
+		PaymentDetails:  paymentDetails,
+		TransactionCode: payment.TransactionCode,
+	}
+
+	// Sending Email
+	defer helpers.SendMail(checkoutResponse)
+
 	// Respond to client
-	c.JSON(http.StatusOK, checkoutResponse)
+	c.JSON(http.StatusOK, models.ResponseSuccessWithData{
+		Status:  "OK",
+		Message: "Successfully created transaction",
+		Code:    http.StatusOK,
+		Data: gin.H{
+			"order_id": order.ID,
+		},
+	})
 }
 
 func GetMenu(c *gin.Context, db *gorm.DB) {
@@ -248,10 +335,11 @@ func GetAllOrders(c *gin.Context, db *gorm.DB) {
 }
 
 func GetOrderByID(c *gin.Context, db *gorm.DB) {
-	orderID := c.Param("id")
+	orderIDStr := c.Param("id")
+	orderId, _ := strconv.Atoi(orderIDStr)
 	var order models.Order
 	// Preload relasi ke User dan OrderDetails
-	if err := db.Preload("OrderDetails").First(&order, "id = ?", orderID).Error; err != nil {
+	if err := db.Preload("OrderDetails").Preload("Payment").Preload("OrderDetails.Menu").First(&order, "id = ?", orderId).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to fetch order",
 			"details": err.Error(),
@@ -260,4 +348,73 @@ func GetOrderByID(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.JSON(http.StatusOK, order)
+}
+func CheckOrderStatusByID(c *gin.Context, db *gorm.DB) {
+	// Ambil parameter "id" dari request dan konversi ke integer
+	orderIDStr := c.Param("id")
+	orderID, err := strconv.Atoi(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid order ID",
+		})
+		return
+	}
+
+	// Cari payment berdasarkan order_id
+	var payment models.Payment
+	if err := db.Where("order_id = ?", orderID).First(&payment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch order",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Periksa transaksi menggunakan service eksternal
+	result, errResp, errCheckTrx := services.CheckTransaction(payment.PaymentTransactionID)
+	if errResp != nil || errCheckTrx != nil {
+		log.Println("Error checking transaction:", errResp, errCheckTrx)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to check transaction status",
+			"details": errCheckTrx.Error(),
+		})
+		return
+	}
+
+	// Tangani status transaksi berdasarkan kondisinya
+	var orderStatus string
+	switch result.TransactionStatus {
+	case "settlement":
+		orderStatus = "success"
+	case "cancel":
+		orderStatus = "canceled"
+	case "pending":
+		orderStatus = "pending"
+	default:
+		orderStatus = "unknown"
+	}
+
+	// Perbarui status order di database
+	if err := db.Model(&models.Order{}).Where("id = ?", orderID).Update("order_status", orderStatus).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to update order status",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	if err := db.Model(&models.Payment{}).Where("order_id = ?", orderID).Update("payment_status", orderStatus).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to update payment status",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Berikan respon sukses dengan hasil dari layanan eksternal
+	c.JSON(http.StatusOK, gin.H{
+		"message":        "Order status updated successfully",
+		"order_status":   orderStatus,
+		"transaction_id": result.TransactionID,
+	})
 }
