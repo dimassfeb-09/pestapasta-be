@@ -41,7 +41,7 @@ func CreateTransaction(trx models.CreateTransactionMidtransPayload) (*models.Cre
 
 	// Add headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+basicAuth(utils.GetENV().SecretKeyJWT, "")) // Replace with actual server key
+	req.Header.Set("Authorization", "Basic "+basicAuth(utils.GetENV().MidtransKey, "")) // Replace with actual server key
 
 	// Configure HTTP client with timeout
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -89,7 +89,7 @@ func CheckTransaction(transactionId string) (*models.StatusTransactionMidtransRe
 
 	// Add headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+basicAuth(utils.GetENV().SecretKeyJWT, "")) // Replace with actual server key
+	req.Header.Set("Authorization", "Basic "+basicAuth(utils.GetENV().MidtransKey, "")) // Replace with actual server key
 
 	// Configure HTTP client with timeout
 	client := &http.Client{Timeout: 10 * time.Second}

@@ -3,165 +3,73 @@
   <head>
     <meta charset="UTF-8" />
     <title>Invoice</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        background-color: #f4f4f4;
-        color: #333;
-      }
-      .invoice-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        border-bottom: 2px solid #007bff;
-        padding-bottom: 15px;
-        margin-bottom: 20px;
-        color: #007bff;
-      }
-      .invoice-header h1 {
-        margin: 0;
-        font-size: 2.5rem;
-      }
-      .invoice-header p {
-        margin: 0;
-      }
-      .invoice-details {
-        background: #ffffff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-      }
-      th,
-      td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-      }
-      th {
-        background-color: #007bff;
-        color: #ffffff;
-      }
-      .total-section {
-        text-align: right;
-        margin-top: 20px;
-        font-weight: bold;
-      }
-      .total-section p {
-        margin: 0;
-        font-size: 1rem;
-      }
-      .total-section h3 {
-        color: #007bff;
-        font-size: 1.5rem;
-        margin-top: 10px;
-      }
-      .payment-info {
-        margin-top: 20px;
-        padding-top: 20px;
-        background: #ffffff;
-        border-top: 3px solid #007bff;
-        border-radius: 8px;
-        padding: 20px;
-      }
-      .payment-info h3 {
-        margin: 0 0 10px;
-        color: #007bff;
-      }
-      .qris-info,
-      .bank-transfer-info {
-        padding: 10px;
-        background-color: #f9f9f9;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-      }
-      .qris-info h4,
-      .bank-transfer-info h4 {
-        margin-top: 0;
-        color: #333;
-      }
-      .qris-info img {
-        display: block;
-        margin: 10px auto;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-      }
-    </style>
   </head>
-  <body>
-    <div class="invoice-header">
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f4f4; color: #333;">
+    <div style="font-size: 16px; gap: 20px; align-items: flex-start; border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; color: #007bff;">
       <div>
-        <h1>INVOICE</h1>
-        <p>Invoice Date: {{.Date}}</p>
-        <p>Invoice Number: {{.InvoiceNumber}}</p>
+        <h1 style="margin: 0; font-size: 2.5rem;">INVOICE</h1>
+        <p style="margin: 0;">Invoice Date: {{.Date}}</p>
+        <p style="margin: 0;">Invoice Number: {{.InvoiceNumber}}</p>
       </div>
       <div>
-        <h3>FROM:</h3>
-        <p>{{.CompanyName}}</p>
-        <p>{{.CompanyEmail}}</p>
-        <p>{{.CompanyPhone}}</p>
+        <h3 style="margin: 0;">FROM:</h3>
+        <p style="margin: 0;">{{.CompanyName}}</p>
+        <p style="margin: 0;">{{.CompanyEmail}}</p>
+        <p style="margin: 0;">{{.CompanyPhone}}</p>
       </div>
     </div>
 
-    <div class="payment-info">
-      <h3>Payment Information</h3>
+    <div style="margin-top: 20px; padding-top: 20px; background: #ffffff; border-top: 3px solid #007bff; border-radius: 8px; padding: 20px;">
+      <h3 style="margin: 0 0 10px; color: #007bff;">Payment Information</h3>
       {{if eq .PaymentMethod "qris"}}
-      <div class="qris-info">
-        <h4>QRIS Payment</h4>
-        <p>Scan the QR code to complete your payment.</p>
+      <div style="padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 5px;">
+        <h4 style="margin-top: 0; color: #333;">QRIS Payment</h4>
+        <p style="margin: 0;">Scan the QR code to complete your payment.</p>
         <img
           src="{{.PaymentQRCodeURL}}"
           alt="QRIS QR Code"
-          style="height: 120px; width: 120px"
+          style="display: block; margin: 10px auto; border: 1px solid #ddd; border-radius: 8px; height: 120px; width: 120px;"
         />
       </div>
       {{else}}
-      <div class="bank-transfer-info">
-        <h4>Bank Transfer</h4>
-        <p>Account Name: {{.PaymentAccountName}}</p>
-        <p>Account Number: {{.PaymentAccountNumber}}</p>
+      <div style="padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 5px;">
+        <h4 style="margin-top: 0; color: #333;">Bank Transfer</h4>
+        <p style="margin: 0;">Account Name: {{.PaymentAccountName}}</p>
+        <p style="margin: 0;">Account Number: {{.PaymentAccountNumber}}</p>
       </div>
       {{end}}
     </div>
 
-    <div class="invoice-details">
-      <h3>BILL TO:</h3>
-      <p>{{.ClientName}}</p>
-      <p>{{.ClientEmail}}</p>
+    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+      <h3 style="margin: 0 0 20px;">BILL TO:</h3>
+      <p style="margin: 0;">{{.ClientName}}</p>
+      <p style="margin: 0;">{{.ClientEmail}}</p>
 
-      <table>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
         <thead>
           <tr>
-            <th>Product/Service</th>
-            <th>Quantity</th>
-            <th>Unit Price</th>
-            <th>Total</th>
+            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #007bff; color: #ffffff;">Product/Service</th>
+            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #007bff; color: #ffffff;">Quantity</th>
+            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #007bff; color: #ffffff;">Unit Price</th>
+            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #007bff; color: #ffffff;">Total</th>
           </tr>
         </thead>
         <tbody>
           {{range .Items}}
           <tr>
-            <td>{{.ProductName}}</td>
-            <td>{{.Quantity}}</td>
-            <td>Rp{{.UnitPrice}}</td>
-            <td>Rp{{.TotalPrice}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">{{.ProductName}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">{{.Quantity}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Rp{{.UnitPrice}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Rp{{.TotalPrice}}</td>
           </tr>
           {{end}}
         </tbody>
       </table>
 
-      <div class="total-section">
-        <p>Subtotal: Rp{{.Subtotal}}</p>
-        <p>Tax (if applicable): Rp{{.Tax}}</p>
-        <h3>Total: Rp{{.Total}}</h3>
+      <div style="text-align: right; margin-top: 20px; font-weight: bold;">
+        <p style="margin: 0; font-size: 1rem;">Subtotal: Rp{{.Subtotal}}</p>
+        <p style="margin: 0; font-size: 1rem;">Tax (if applicable): Rp{{.Tax}}</p>
+        <h3 style="color: #007bff; font-size: 1.5rem; margin-top: 10px;">Total: Rp{{.Total}}</h3>
       </div>
     </div>
   </body>

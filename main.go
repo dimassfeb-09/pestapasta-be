@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net/http"
+	"strings"
 
 	"github.com/dimassfeb-09/pestapasta-be/controllers"
 	"github.com/dimassfeb-09/pestapasta-be/models"
@@ -25,39 +27,84 @@ func init() {
 func main() {
 	r := gin.Default()
 
+	// Setup CORS
 	utils.Cors(r)
 
-	r.POST("/login", func(c *gin.Context) {
-		controllers.HandleLogin(c, db)
-	})
+	// Group untuk endpoint publik (tidak memerlukan autentikasi)
+	public := r.Group("/")
+	{
+		public.POST("/login", func(c *gin.Context) {
+			controllers.HandleLogin(c, db)
+		})
 
-	r.POST("/checkout", func(c *gin.Context) {
-		controllers.HandleCheckout(c, db)
-	})
+		public.POST("/checkout", func(c *gin.Context) {
+			controllers.HandleCheckout(c, db)
+		})
 
-	r.GET("/menus", func(c *gin.Context) {
-		controllers.GetMenu(c, db)
-	})
+		public.GET("/menus", func(c *gin.Context) {
+			controllers.GetMenu(c, db)
+		})
 
-	r.GET("/categories", func(c *gin.Context) {
-		controllers.GetCategories(c, db)
-	})
+		public.GET("/categories", func(c *gin.Context) {
+			controllers.GetCategories(c, db)
+		})
 
-	r.GET("/payment_methods", func(c *gin.Context) {
-		controllers.GetPaymentMethods(c, db)
-	})
+		public.GET("/payment_methods", func(c *gin.Context) {
+			controllers.GetPaymentMethods(c, db)
+		})
 
-	r.GET("/orders", func(c *gin.Context) {
-		controllers.GetAllOrders(c, db)
-	})
+		public.GET("/orders/:id/status", func(c *gin.Context) {
+			controllers.CheckOrderStatusByID(c, db)
+		})
 
-	r.GET("/orders/:id", func(c *gin.Context) {
-		controllers.GetOrderByID(c, db)
-	})
+		public.GET("/orders/:id", func(c *gin.Context) {
+			controllers.GetOrderByID(c, db)
+		})
 
-	r.GET("/orders/:id/status", func(c *gin.Context) {
-		controllers.CheckOrderStatusByID(c, db)
-	})
+	}
+
+	// Middleware untuk validasi JWT
+	authMiddleware := func(ctx *gin.Context) {
+		// Ambil header Authorization
+		authorization := ctx.GetHeader("Authorization")
+		if authorization == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+			ctx.Abort()
+			return
+		}
+
+		// Periksa format Bearer
+		if !strings.HasPrefix(authorization, "Bearer ") {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
+			ctx.Abort()
+			return
+		}
+
+		// Ekstrak token
+		tokenString := strings.TrimPrefix(authorization, "Bearer ")
+
+		// Validasi token
+		claims, err := utils.ValidateJWT(tokenString)
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			ctx.Abort()
+			return
+		}
+
+		// Simpan klaim ke context untuk digunakan pada handler berikutnya
+		ctx.Set("claims", claims)
+		ctx.Next()
+	}
+
+	// Group untuk endpoint yang memerlukan autentikasi
+	auth := r.Group("/")
+	auth.Use(authMiddleware)
+	{
+		auth.GET("/orders", func(c *gin.Context) {
+			controllers.GetAllOrders(c, db)
+		})
+
+	}
 
 	// Start the server
 	if err := r.Run(":8081"); err != nil {

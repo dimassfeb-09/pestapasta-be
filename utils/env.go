@@ -7,6 +7,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Email struct {
+	User     string
+	Password string
+}
+
 // ENV struct holds all environment variables, such as database and Midtrans keys
 type ENV struct {
 	DBHost       string
@@ -17,6 +22,7 @@ type ENV struct {
 	SSLMode      string
 	MidtransKey  string
 	SecretKeyJWT string
+	Email        Email
 }
 
 // GetENV loads environment variables based on the current environment (production or local)
@@ -32,6 +38,7 @@ func GetENV() ENV {
 
 	// Initialize environment-specific variables
 	var dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, midtransKey, secretKeyJWT string
+	var email Email
 
 	// Check the environment and load the respective variables
 	if env == "production" {
@@ -52,6 +59,9 @@ func GetENV() ENV {
 		midtransKey = getEnv("MIDTRANS_SERVER_KEY_SANDBOX", "default-sandbox-key")
 	}
 
+	email.User = getEnv("EMAIL_USER_MAILER", "default-email")
+	email.Password = getEnv("EMAIL_PASSWORD_MAILER", "default-password")
+
 	// Get the JWT secret key which is common across environments
 	secretKeyJWT = getEnv("SECRET_KEY_JWT", "")
 
@@ -65,6 +75,7 @@ func GetENV() ENV {
 		SSLMode:      sslMode,
 		MidtransKey:  midtransKey,
 		SecretKeyJWT: secretKeyJWT,
+		Email:        email,
 	}
 }
 

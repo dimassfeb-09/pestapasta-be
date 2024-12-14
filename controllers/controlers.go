@@ -210,11 +210,12 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 	// Create order details
 	for i, product := range products {
 		quantity := productQuantities[product.ID]
+
 		orderDetail := models.OrderDetail{
 			OrderID:       order.ID,
 			MenuID:        product.ID,
 			Quantity:      quantity,
-			Notes:         checkoutRequest.Products[i].Note,
+			Notes:         checkoutRequest.Products[i].Notes,
 			SubtotalPrice: product.Price * float64(quantity),
 		}
 		if err := db.Create(&orderDetail).Error; err != nil {
@@ -268,7 +269,8 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		Message: "Successfully created transaction",
 		Code:    http.StatusOK,
 		Data: gin.H{
-			"order_id": order.ID,
+			"order_id":         order.ID,
+			"transaction_code": order.Payment.TransactionCode,
 		},
 	})
 }
@@ -336,21 +338,79 @@ func GetAllOrders(c *gin.Context, db *gorm.DB) {
 
 func GetOrderByID(c *gin.Context, db *gorm.DB) {
 	orderIDStr := c.Param("id")
-	orderId, _ := strconv.Atoi(orderIDStr)
-	var order models.Order
-	// Preload relasi ke User dan OrderDetails
-	if err := db.Preload("OrderDetails").Preload("Payment").Preload("OrderDetails.Menu").First(&order, "id = ?", orderId).Error; err != nil {
+	orderID, err := strconv.Atoi(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid order ID",
+		})
+		return
+	}
+
+	// Perbarui status order terlebih dahulu
+	_, err = CheckAndUpdateOrderStatus(orderID, db)
+	if err != nil {
+		log.Println("Error updating order status:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to fetch order",
+			"error":   "Failed to update order status",
 			"details": err.Error(),
 		})
 		return
 	}
 
+	// Ambil data order setelah status diperbarui
+	var order models.Order
+	if err := db.Preload("OrderDetails").Preload("Payment").Preload("OrderDetails.Menu").First(&order, "id = ?", orderID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Order not found",
+			})
+		} else {
+			log.Println("Error fetching order:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch order",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	// Kirim respon sukses dengan data order
 	c.JSON(http.StatusOK, order)
 }
+
+func GetOrderByTransactionCode(c *gin.Context, db *gorm.DB) {
+	transactionCodeStr := c.Param("transactionCode")
+	var order models.Order
+
+	// Use Join to include Payment and filter by transaction code
+	err := db.Preload("OrderDetails.Menu"). // Preload nested relations
+						Preload("OrderDetails").
+						Preload("Payment").
+						Joins("JOIN payments ON payments.order_id = orders.id"). // Explicit join
+						Where("payments.transaction_code = ?", transactionCodeStr).
+						First(&order).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Return 404 if no order is found
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Order not found",
+			})
+		} else {
+			// Handle other database errors
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch order",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	// Return the order as a JSON response
+	c.JSON(http.StatusOK, order)
+}
+
 func CheckOrderStatusByID(c *gin.Context, db *gorm.DB) {
-	// Ambil parameter "id" dari request dan konversi ke integer
 	orderIDStr := c.Param("id")
 	orderID, err := strconv.Atoi(orderIDStr)
 	if err != nil {
@@ -360,42 +420,10 @@ func CheckOrderStatusByID(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	// Cari payment berdasarkan order_id
-	var payment models.Payment
-	if err := db.Where("order_id = ?", orderID).First(&payment).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to fetch order",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	// Periksa transaksi menggunakan service eksternal
-	result, errResp, errCheckTrx := services.CheckTransaction(payment.PaymentTransactionID)
-	if errResp != nil || errCheckTrx != nil {
-		log.Println("Error checking transaction:", errResp, errCheckTrx)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to check transaction status",
-			"details": errCheckTrx.Error(),
-		})
-		return
-	}
-
-	// Tangani status transaksi berdasarkan kondisinya
-	var orderStatus string
-	switch result.TransactionStatus {
-	case "settlement":
-		orderStatus = "success"
-	case "cancel":
-		orderStatus = "canceled"
-	case "pending":
-		orderStatus = "pending"
-	default:
-		orderStatus = "unknown"
-	}
-
-	// Perbarui status order di database
-	if err := db.Model(&models.Order{}).Where("id = ?", orderID).Update("order_status", orderStatus).Error; err != nil {
+	// Perbarui status order
+	orderStatus, err := CheckAndUpdateOrderStatus(orderID, db)
+	if err != nil {
+		log.Println("Error updating order status:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to update order status",
 			"details": err.Error(),
@@ -403,18 +431,65 @@ func CheckOrderStatusByID(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	if err := db.Model(&models.Payment{}).Where("order_id = ?", orderID).Update("payment_status", orderStatus).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to update payment status",
-			"details": err.Error(),
-		})
-		return
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Order status updated successfully",
+		"order_status": orderStatus,
+	})
+}
+
+func CheckAndUpdateOrderStatus(orderID int, db *gorm.DB) (string, error) {
+	// Cari data payment berdasarkan order_id
+	var payment models.Payment
+	if err := db.Where("order_id = ?", orderID).First(&payment).Error; err != nil {
+		return "", fmt.Errorf("failed to fetch payment: %w", err)
 	}
 
-	// Berikan respon sukses dengan hasil dari layanan eksternal
-	c.JSON(http.StatusOK, gin.H{
-		"message":        "Order status updated successfully",
-		"order_status":   orderStatus,
-		"transaction_id": result.TransactionID,
-	})
+	// Periksa transaksi menggunakan layanan eksternal
+	result, errResp, errCheckTrx := services.CheckTransaction(payment.PaymentTransactionID)
+	if errResp != nil || errCheckTrx != nil {
+		return "", fmt.Errorf("error checking transaction: %v %v", errResp, errCheckTrx)
+	}
+
+	// Tentukan status order berdasarkan status transaksi
+	var orderStatus string
+	switch result.TransactionStatus {
+	case "authorize":
+		orderStatus = "authorized"
+	case "capture":
+		orderStatus = "captured"
+	case "settlement":
+		orderStatus = "success"
+	case "deny":
+		orderStatus = "denied"
+	case "pending":
+		orderStatus = "pending"
+	case "cancel":
+		orderStatus = "canceled"
+	case "refund":
+		orderStatus = "refunded"
+	case "partial_refund":
+		orderStatus = "partially_refunded"
+	case "chargeback":
+		orderStatus = "charged_back"
+	case "partial_chargeback":
+		orderStatus = "partially_charged_back"
+	case "expire":
+		orderStatus = "expired"
+	case "failure":
+		orderStatus = "failed"
+	default:
+		orderStatus = "unknown"
+	}
+
+	// Perbarui status order di database
+	if err := db.Model(&models.Order{}).Where("id = ?", orderID).Update("order_status", orderStatus).Error; err != nil {
+		return "", fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	// Perbarui status payment di database
+	if err := db.Model(&models.Payment{}).Where("order_id = ?", orderID).Update("payment_status", orderStatus).Error; err != nil {
+		return "", fmt.Errorf("failed to update payment status: %w", err)
+	}
+
+	return orderStatus, nil
 }

@@ -40,8 +40,8 @@ type Order struct {
 
 // OrderDetail represents details of a single pasta item in an order.
 type OrderDetail struct {
-	ID            int     `json:"id" gorm:"primary_key"` // Primary key di tabel order_details
-	OrderID       int     `json:"order_id"`              // Foreign key ke tabel orders
+	ID            int     `json:"id" gorm:"primary_key"`
+	OrderID       int     `json:"order_id"`
 	MenuID        int     `json:"menu_id"`
 	Quantity      int     `json:"quantity"`
 	SubtotalPrice float64 `json:"subtotal_price"`
@@ -49,19 +49,20 @@ type OrderDetail struct {
 	Menu          Menu    `json:"menu_detail" gorm:"foreignKey:MenuID"`
 }
 
-// Payment represents payment information for an order.
 type Payment struct {
 	ID                   int    `gorm:"primary_key"`
-	OrderID              int    `json:"order_id"`
-	PaymentMethod        string `json:"payment_method"`
-	PaymentStatus        string `json:"payment_status"`
-	PaymentAccountNumber string `json:"payment_account_number,omitempty"`
-	PaymentAccountName   string `json:"payment_account_name,omitempty"`
-	PaymentQRCodeURL     string `json:"payment_qrcode_url,omitempty"`
-	PaymentCreateDate    string `json:"payment_create_date"`
-	PaymentExpiredDate   string `json:"payment_expired_date"`
-	PaymentTransactionID string `json:"payment_transaction_id,omitempty"`
-	TransactionCode      string `json:"transaction_code"`
+	OrderID              int    `json:"order_id"`                         // Nullable field
+	PaymentMethod        string `json:"payment_method"`                   // Nullable field
+	PaymentStatus        string `json:"payment_status"`                   // Nullable field
+	PaymentAccountNumber string `json:"payment_account_number,omitempty"` // Nullable field
+	PaymentDate          string `json:"payment_date,omitempty"`           // Nullable field
+	CreatedAt            string `json:"created_at,omitempty"`             // Nullable field
+	TransactionCode      string `json:"transaction_code"`                 // Nullable field
+	PaymentAccountName   string `json:"payment_account_name,omitempty"`   // Nullable field
+	PaymentQRCodeURL     string `json:"payment_qr_code_url,omitempty"`    // Nullable field
+	PaymentCreateDate    string `json:"payment_create_date,omitempty"`    // Nullable field
+	PaymentExpiredDate   string `json:"payment_expired_date,omitempty"`   // Nullable field
+	PaymentTransactionID string `json:"payment_transaction_id,omitempty"` // Nullable field
 }
 
 // CheckoutRequest represents the incoming request for checkout.
@@ -72,7 +73,7 @@ type CheckoutRequest struct {
 	Products        []struct {
 		ID       int    `json:"id"`
 		Quantity int    `json:"quantity"`
-		Note     string `json:"note"`
+		Notes    string `json:"notes"`
 	} `json:"products"`
 }
 
