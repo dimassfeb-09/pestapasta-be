@@ -69,3 +69,6 @@ type StatusTransactionMidtransResponse struct {
 	TransactionTime   string `json:"transaction_time"`
 	ExpiryTime        string `json:"expiry_time"`
 }
+
+type QrisDetails struct {
+}

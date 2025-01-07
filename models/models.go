@@ -11,19 +11,20 @@ type User struct {
 // Category represents a food category.
 type Category struct {
 	ID           int    `json:"id" gorm:"primary_key"`
-	CategoryName string `json:"category_name"`
-	Description  string `json:"description"`
+	CategoryName string `json:"category_name" binding:"required"`
+	Description  string `json:"description" binding:"required"`
 }
 
 // PastaMenu represents a pasta menu item.
 type Menu struct {
-	ID          int     `json:"id" gorm:"primary_key"`
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	Description string  `json:"description"`
-	CategoryID  int     `json:"category_id"`
-	ImageURL    string  `json:"image_url"`
+	ID          int     `json:"id" gorm:"primaryKey"`
+	Name        string  `json:"name" validate:"required"`
+	Price       float64 `json:"price" validate:"required"`
+	Description string  `json:"description" validate:"required"`
+	CategoryID  int     `json:"category_id" validate:"required"`
+	ImageURL    string  `json:"image_url" validate:"required"`
 	Rating      int     `json:"rating"`
+	IsAvailable bool    `gorm:"type:boolean; column:is_available" json:"is_available" validate:"required"`
 }
 
 // Order represents an order placed by a customer.

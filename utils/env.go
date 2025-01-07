@@ -21,6 +21,7 @@ type ENV struct {
 	DBName       string
 	SSLMode      string
 	MidtransKey  string
+	MidtransUrl  string
 	SecretKeyJWT string
 	Email        Email
 }
@@ -37,7 +38,7 @@ func GetENV() ENV {
 	env := getEnv("APP_ENV", "local") // Default to 'local' if not set
 
 	// Initialize environment-specific variables
-	var dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, midtransKey, secretKeyJWT string
+	var dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, midtransKey, midtransUrl, secretKeyJWT string
 	var email Email
 
 	// Check the environment and load the respective variables
@@ -48,15 +49,17 @@ func GetENV() ENV {
 		dbPassword = getEnv("DB_PASSWORD_PRODUCTION", "prod-password")
 		dbName = getEnv("DB_NAME_PRODUCTION", "prod-db")
 		sslMode = getEnv("SSL_MODE_PRODUCTION", "require")
-		midtransKey = getEnv("MIDTRANS_SERVER_KEY_PRODUCTION", "default-prod-key")
+		midtransUrl = getEnv("MIDTRANS_SERVEL_URL_PRODUCTION", "https://api.midtrans.com/v2")
+		midtransKey = getEnv("MIDTRANS_SERVER_KEY_PRODUCTION", "default-midtrans-key")
 	} else {
 		dbHost = getEnv("DB_HOST_LOCAL", "localhost")
 		dbPort = getEnv("DB_PORT_LOCAL", "5432")
-		dbUser = getEnv("DB_USER_LOCAL", "local-user")
-		dbPassword = getEnv("DB_PASSWORD_LOCAL", "local-password")
-		dbName = getEnv("DB_NAME_LOCAL", "local-db")
+		dbUser = getEnv("DB_USER_LOCAL", "postgres")
+		dbPassword = getEnv("DB_PASSWORD_LOCAL", "postgres")
+		dbName = getEnv("DB_NAME_LOCAL", "pestapasta-db")
 		sslMode = getEnv("SSL_MODE_LOCAL", "disable")
-		midtransKey = getEnv("MIDTRANS_SERVER_KEY_SANDBOX", "default-sandbox-key")
+		midtransUrl = getEnv("MIDTRANS_SERVEL_URL_SANDBOX", "https://api.sandbox.midtrans.com/v2")
+		midtransKey = getEnv("MIDTRANS_SERVER_KEY_SANDBOX", "default-midtrans-key")
 	}
 
 	email.User = getEnv("EMAIL_USER_MAILER", "default-email")
@@ -74,6 +77,7 @@ func GetENV() ENV {
 		DBName:       dbName,
 		SSLMode:      sslMode,
 		MidtransKey:  midtransKey,
+		MidtransUrl:  midtransUrl,
 		SecretKeyJWT: secretKeyJWT,
 		Email:        email,
 	}

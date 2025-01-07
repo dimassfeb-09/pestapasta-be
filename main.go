@@ -45,8 +45,16 @@ func main() {
 			controllers.GetMenu(c, db)
 		})
 
+		public.GET("/menus/:id", func(c *gin.Context) {
+			controllers.GetMenuByID(c, db)
+		})
+
 		public.GET("/categories", func(c *gin.Context) {
 			controllers.GetCategories(c, db)
+		})
+
+		public.GET("/categories/:id", func(c *gin.Context) {
+			controllers.GetCategoriesByID(c, db)
 		})
 
 		public.GET("/payment_methods", func(c *gin.Context) {
@@ -104,6 +112,21 @@ func main() {
 			controllers.GetAllOrders(c, db)
 		})
 
+		auth.POST("/menus", func(c *gin.Context) {
+			controllers.CreateNewProduct(c, db)
+		})
+
+		auth.PUT("/menus/:id", func(c *gin.Context) {
+			controllers.UpdateProduct(c, db)
+		})
+
+		auth.POST("/categories", func(c *gin.Context) {
+			controllers.CreateCategory(c, db)
+		})
+
+		auth.PUT("/categories/:id", func(c *gin.Context) {
+			controllers.UpdateCategory(c, db)
+		})
 	}
 
 	// Start the server

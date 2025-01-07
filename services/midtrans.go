@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,10 @@ import (
 
 	"github.com/dimassfeb-09/pestapasta-be/models"
 	"github.com/dimassfeb-09/pestapasta-be/utils"
+)
+
+var (
+	env = utils.GetENV()
 )
 
 func CreateTransaction(trx models.CreateTransactionMidtransPayload) (*models.CreateTransactionMidtransResponse, *models.CreateTransactionMidtransResponseWithError, error) {
@@ -32,9 +37,12 @@ func CreateTransaction(trx models.CreateTransactionMidtransPayload) (*models.Cre
 		return nil, nil, fmt.Errorf("failed to marshal transaction payload: %w", err)
 	}
 
+	fmt.Println(string(data))
+
 	// Create request
 	bytesBuffer := bytes.NewBuffer(data)
-	req, err := http.NewRequest("POST", "https://api.midtrans.com/v2/charge", bytesBuffer)
+
+	req, err := http.NewRequest("POST", utils.EndpointMidtransCharge, bytesBuffer)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -80,7 +88,7 @@ func CreateTransaction(trx models.CreateTransactionMidtransPayload) (*models.Cre
 }
 
 func CheckTransaction(transactionId string) (*models.StatusTransactionMidtransResponse, *models.CreateTransactionMidtransResponseWithError, error) {
-
+	fmt.Println(transactionId)
 	url := fmt.Sprintf("https://api.midtrans.com/v2/%s/status", transactionId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -89,10 +97,15 @@ func CheckTransaction(transactionId string) (*models.StatusTransactionMidtransRe
 
 	// Add headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+basicAuth(utils.GetENV().MidtransKey, "")) // Replace with actual server key
+	req.Header.Set("Authorization", "Basic "+basicAuth(env.MidtransKey, "")) // Replace with actual server key
 
 	// Configure HTTP client with timeout
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 
 	// Send the request
 	resp, err := client.Do(req)

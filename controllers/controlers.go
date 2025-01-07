@@ -139,7 +139,11 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 	if paymentMethod.Code == "qris" {
 		var itemDetails []models.ItemDetails
 		for _, item := range checkoutRequest.Products {
-			product := productMap[item.ID]
+			product, exists := productMap[item.ID]
+			if !exists {
+				c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Product with ID %d not found", item.ID)})
+				return
+			}
 			itemDetails = append(itemDetails, models.ItemDetails{
 				ID:       fmt.Sprintf("PRODUCTID-%d", product.ID),
 				Price:    product.Price,
@@ -191,7 +195,7 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	// Create payment record
+	// Initialize payment record
 	payment := models.Payment{
 		OrderID:              order.ID,
 		PaymentMethod:        paymentMethod.Name,
@@ -199,12 +203,14 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		PaymentAccountName:   paymentMethod.AccountName,
 		PaymentStatus:        "pending",
 		PaymentCreateDate:    time.Now().Format("2006-01-02 15:04:05"),
-		PaymentExpiredDate:   midtransResponse.ExpiryTime,
 		TransactionCode:      fmt.Sprintf("TXN%d", order.ID),
 	}
-	if payment.PaymentMethod == "QRIS" {
+
+	// Ensure midtransResponse is not nil before accessing it
+	if payment.PaymentMethod == "QRIS" && midtransResponse != nil {
 		payment.PaymentQRCodeURL = midtransResponse.Actions[0].URL
 		payment.PaymentTransactionID = midtransResponse.TransactionID
+		payment.PaymentExpiredDate = midtransResponse.ExpiryTime
 	}
 
 	// Create order details
@@ -246,6 +252,7 @@ func HandleCheckout(c *gin.Context, db *gorm.DB) {
 		paymentDetails.PaymentMethod = "qris"
 	}
 
+	// Ensure midtransResponse is not nil
 	if midtransResponse != nil {
 		paymentDetails.QRImageURL = midtransResponse.Actions[0].URL
 	}
@@ -299,6 +306,33 @@ func GetMenu(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, menu)
 }
 
+func GetMenuByID(c *gin.Context, db *gorm.DB) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid params id"})
+		return
+	}
+
+	var menu models.Menu
+	if err := db.Where("id = ?", id).First(&menu).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Order not found",
+			})
+		} else {
+			log.Println("Error fetching order:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch order",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, menu)
+}
+
 func GetCategories(c *gin.Context, db *gorm.DB) {
 	var categories []models.Category
 
@@ -308,6 +342,33 @@ func GetCategories(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.JSON(http.StatusOK, categories)
+}
+
+func GetCategoriesByID(c *gin.Context, db *gorm.DB) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid params id"})
+		return
+	}
+
+	var category models.Category
+	if err := db.Where("id = ?", id).First(&category).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Order not found",
+			})
+		} else {
+			log.Println("Error fetching order:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch order",
+				"details": err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, category)
 }
 
 func GetPaymentMethods(c *gin.Context, db *gorm.DB) {
@@ -408,6 +469,120 @@ func GetOrderByTransactionCode(c *gin.Context, db *gorm.DB) {
 
 	// Return the order as a JSON response
 	c.JSON(http.StatusOK, order)
+}
+
+func UpdateCategory(c *gin.Context, db *gorm.DB) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid request id"})
+		return
+	}
+
+	var category models.Category
+	if err := c.ShouldBindJSON(&category); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
+		return
+	}
+
+	if err := db.Model(&models.Category{}).Where("id = ?", id).Updates(category).Error; err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Error updating category"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.ResponseSuccess{
+		Status:  "OK",
+		Message: "Successfully updated category",
+		Code:    http.StatusOK,
+	})
+}
+
+func CreateCategory(c *gin.Context, db *gorm.DB) {
+	var category models.Category
+	if err := c.ShouldBindJSON(&category); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
+		return
+	}
+
+	if err := db.Create(&category).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating new category"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.ResponseSuccess{
+		Status:  "OK",
+		Message: "Successfully created category",
+		Code:    http.StatusOK,
+	})
+}
+
+func CreateNewProduct(c *gin.Context, db *gorm.DB) {
+	var menu models.Menu
+	if err := c.ShouldBindJSON(&menu); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
+		return
+	}
+
+	if err := db.Create(&menu).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating new menu"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.ResponseSuccess{
+		Status:  "OK",
+		Message: "Successfully created product",
+		Code:    http.StatusOK,
+	})
+}
+
+func UpdateProduct(c *gin.Context, db *gorm.DB) {
+	// Parse and validate the product ID from the URL
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	// Check if the product exists
+	var existingMenu models.Menu
+	if err := db.First(&existingMenu, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error: " + err.Error()})
+		}
+		return
+	}
+
+	// Bind and validate the JSON payload
+	var menu models.Menu
+	if err := c.ShouldBindJSON(&menu); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	log.Printf("Received payload: %+v\n", menu)
+
+	// Update only specific fields
+	if err := db.Model(&existingMenu).Updates(map[string]interface{}{
+		"Name":        menu.Name,
+		"Price":       menu.Price,
+		"Description": menu.Description,
+		"CategoryID":  menu.CategoryID,
+		"ImageURL":    menu.ImageURL,
+		"Rating":      menu.Rating,
+		"IsAvailable": menu.IsAvailable,
+	}).Error; err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Error updating product: " + err.Error()})
+		return
+	}
+
+	// Respond with success
+	c.JSON(http.StatusOK, models.ResponseSuccess{
+		Status:  "OK",
+		Message: "Successfully updated product",
+		Code:    http.StatusOK,
+	})
 }
 
 func CheckOrderStatusByID(c *gin.Context, db *gorm.DB) {
