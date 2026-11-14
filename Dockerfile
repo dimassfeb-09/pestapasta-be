@@ -1,5 +1,5 @@
 ARG GO_VERSION=1.27.4
-FROM golang:${GO_VERSION}-bookworm as builder
+FROM golang:${GO_VERSION}-bookworm AS builder
 
 WORKDIR /usr/src/app
 
@@ -19,7 +19,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 # Salin aplikasi dari builder
 COPY --from=builder /run-app /usr/local/bin/
 
-EXPOSE 8081
+EXPOSE 8080
 
 # Jalankan aplikasi
 CMD ["run-app"]

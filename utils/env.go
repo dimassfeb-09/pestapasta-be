@@ -30,7 +30,7 @@ type ENV struct {
 func GetENV() ENV {
 	// Load environment variables from .env file (if present)
 	err := godotenv.Load()
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		log.Printf("Error loading .env file: %v", err)
 	}
 

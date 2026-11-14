@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      PORT: "8080"
+      GIN_MODE: ${GIN_MODE:-release}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # Database is external/third-party: connection comes from .env
+    # (DB_HOST_PRODUCTION / DB_PORT_PRODUCTION / DB_USER_PRODUCTION / ...).
+    # No postgres service is started by this compose.
+
+# No volumes: database is managed externally.

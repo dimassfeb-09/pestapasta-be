@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/dimassfeb-09/pestapasta-be/controllers"
@@ -33,6 +34,14 @@ func main() {
 	// Group untuk endpoint publik (tidak memerlukan autentikasi)
 	public := r.Group("/")
 	{
+		// Health check endpoints for Docker/Coolify probes
+		public.GET("/", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		})
+		public.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		})
+
 		public.POST("/login", func(c *gin.Context) {
 			controllers.HandleLogin(c, db)
 		})
@@ -130,7 +139,11 @@ func main() {
 	}
 
 	// Start the server
-	if err := r.Run(":8081"); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Server failed:", err)
 	}
 }
