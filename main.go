@@ -141,7 +141,7 @@ func main() {
 	// Start the server
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "9989"
 	}
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Server failed:", err)

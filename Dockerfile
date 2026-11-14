@@ -19,7 +19,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 # Salin aplikasi dari builder
 COPY --from=builder /run-app /usr/local/bin/
 
-EXPOSE 8080
+EXPOSE 9989
 
 # Jalankan aplikasi
 CMD ["run-app"]
