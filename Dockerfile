@@ -1,4 +1,4 @@
-ARG GO_VERSION=1
+ARG GO_VERSION=1.27.4
 FROM golang:${GO_VERSION}-bookworm as builder
 
 WORKDIR /usr/src/app
@@ -11,14 +11,15 @@ RUN go mod download && go mod verify
 COPY . .
 RUN go build -v -o /run-app .
 
-FROM debian:bookworm
+FROM debian:bookworm-slim
 
-# Instal paket sertifikat CA
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Salin sertifikat CA dari builder (menghindari apt-get saat build)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 # Salin aplikasi dari builder
 COPY --from=builder /run-app /usr/local/bin/
+
+EXPOSE 8081
 
 # Jalankan aplikasi
 CMD ["run-app"]
