@@ -18,18 +18,18 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Menus / Products (min 10)
 INSERT INTO menus (id, name, price, description, category_id, image_url, rating, is_available) VALUES
-(1, 'Spaghetti Bolognese', 45000, 'Spaghetti dengan saus bolognese daging sapi cincang', 1, 'https://example.com/img/spaghetti-bolognese.jpg', 5, true),
-(2, 'Carbonara', 50000, 'Pasta carbonara creamy dengan bacon dan parmesan', 1, 'https://example.com/img/carbonara.jpg', 5, true),
-(3, 'Aglio Olio', 40000, 'Spaghetti aglio olio dengan cabai dan olive oil', 1, 'https://example.com/img/aglio-olio.jpg', 4, true),
-(4, 'Lasagna', 60000, 'Lasagna panggang dengan saus bechamel dan daging', 1, 'https://example.com/img/lasagna.jpg', 5, true),
-(5, 'Fettuccine Alfredo', 52000, 'Fettuccine dengan saus alfredo creamy', 1, 'https://example.com/img/fettuccine-alfredo.jpg', 4, true),
-(6, 'Margherita Pizza', 75000, 'Pizza margherita dengan mozzarella dan basil', 2, 'https://example.com/img/margherita.jpg', 5, true),
-(7, 'Pepperoni Pizza', 85000, 'Pizza pepperoni dengan keju mozzarella', 2, 'https://example.com/img/pepperoni.jpg', 5, true),
-(8, 'Iced Lemon Tea', 15000, 'Teh lemon dingin segar', 3, 'https://example.com/img/iced-lemon-tea.jpg', 4, true),
-(9, 'Mineral Water', 8000, 'Air mineral 600ml', 3, 'https://example.com/img/mineral-water.jpg', 3, true),
-(10, 'Tiramisu', 35000, 'Dessert tiramisu khas Italia', 4, 'https://example.com/img/tiramisu.jpg', 5, true),
-(11, 'Garlic Bread', 20000, 'Roti bawang panggang crispy', 5, 'https://example.com/img/garlic-bread.jpg', 4, true),
-(12, 'Caesar Salad', 30000, 'Salad caesar dengan crouton dan parmesan', 5, 'https://example.com/img/caesar-salad.jpg', 4, true)
+(1, 'Spaghetti Bolognese', 45000, 'Spaghetti dengan saus bolognese daging sapi cincang', 1, 'https://picsum.photos/seed/pestapasta1/400/300', 5, true),
+(2, 'Carbonara', 50000, 'Pasta carbonara creamy dengan bacon dan parmesan', 1, 'https://picsum.photos/seed/pestapasta2/400/300', 5, true),
+(3, 'Aglio Olio', 40000, 'Spaghetti aglio olio dengan cabai dan olive oil', 1, 'https://picsum.photos/seed/pestapasta3/400/300', 4, true),
+(4, 'Lasagna', 60000, 'Lasagna panggang dengan saus bechamel dan daging', 1, 'https://picsum.photos/seed/pestapasta4/400/300', 5, true),
+(5, 'Fettuccine Alfredo', 52000, 'Fettuccine dengan saus alfredo creamy', 1, 'https://picsum.photos/seed/pestapasta5/400/300', 4, true),
+(6, 'Margherita Pizza', 75000, 'Pizza margherita dengan mozzarella dan basil', 2, 'https://picsum.photos/seed/pestapasta6/400/300', 5, true),
+(7, 'Pepperoni Pizza', 85000, 'Pizza pepperoni dengan keju mozzarella', 2, 'https://picsum.photos/seed/pestapasta7/400/300', 5, true),
+(8, 'Iced Lemon Tea', 15000, 'Teh lemon dingin segar', 3, 'https://picsum.photos/seed/pestapasta8/400/300', 4, true),
+(9, 'Mineral Water', 8000, 'Air mineral 600ml', 3, 'https://picsum.photos/seed/pestapasta9/400/300', 3, true),
+(10, 'Tiramisu', 35000, 'Dessert tiramisu khas Italia', 4, 'https://picsum.photos/seed/pestapasta10/400/300', 5, true),
+(11, 'Garlic Bread', 20000, 'Roti bawang panggang crispy', 5, 'https://picsum.photos/seed/pestapasta11/400/300', 4, true),
+(12, 'Caesar Salad', 30000, 'Salad caesar dengan crouton dan parmesan', 5, 'https://picsum.photos/seed/pestapasta12/400/300', 4, true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Optional: reset sequences so future inserts get correct IDs
